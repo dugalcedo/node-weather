@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node Weather</title>
+    <style>
+        #weather-table {
+            width: 80%;
+        }
+    </style>
+</head>
+<body>
+    <form action="/city-search" method="POST" id="search-form">
+        Search city: <input type="text" name="city" required> <button>Submit</button>
+    </form>
+    <div id="search-results">
+
+    </div>
+    <div id="selected-location">
+
+    </div>
+    <script>
+        const form = document.querySelector('#search-form')
+        const resultsDiv = document.querySelector('#search-results')
+        const locDiv = document.querySelector('#selected-location')
+        form.addEventListener('submit', handleForm)
+
+        async function handleForm(e) {
+            e.preventDefault()
+            const city = e.target.city.value
+            let data = await fetch(`/city-search?city=${city}`, {method: 'POST'})
+            data = await data.json()
+            data = await data.results
+            displayResults(data)
+        }
+
+        function displayResults(data) {
+            resultsDiv.innerHTML = ``
+            data.forEach(loc => {
+                const { name, 
+                        admin1, 
+                        country,
+                        latitude,
+                        longitude
+                    } = loc
+                resultsDiv.innerHTML += `
+                    <div class="search-result">
+                        <span>
+                            ${name}, ${admin1}, ${country}
+                        </span>
+                        <button onclick="selectLocation(${latitude}, ${longitude})">
+                            Select
+                        </button>
+                    </div>
+                `
+            })
+        }
+
+        async function selectLocation(lat, long) {
+            let data = await fetch(`/location?lat=${lat}&long=${long}`, {method: 'POST'})
+            data = await data.json()
+            displayWeather(data)
+        }
+        
+        function displayWeather(data) {
+            resultsDiv.innerHTML = ``
+            locDiv.innerHTML = ``
+            let temps = data.hourly.temperature_2m
+            let feels = data.hourly.apparent_temperature
+            let probs = data.hourly.precipitation_probability
+            let winds = data.hourly.windspeed_10m
+            let precs = data.hourly.precipitation
+            let gusts = data.hourly.windgusts_10m
+            let times = data.hourly.time
+            const table = document.createElement('table')
+            table.setAttribute('id', 'weather-table')
+            table.innerHTML += `
+                <tr>
+                    <th>Time</th>
+                    <th>Temperature</th>
+                    <th>Precipitation</th>
+                    <th>Wind</th>
+                </tr>
+            `
+            times.forEach((time, i) => {
+                appendRow(table, {
+                    temp: temps[i],
+                    feel: feels[i],
+                    prob: probs[i],
+                    wind: winds[i],
+                    gust: gusts[i],
+                    time: times[i],
+                    prec: precs[i]
+                })
+            })
+            locDiv.append(table)
+        }
+
+        function appendRow(table, w) {
+            let date = new Date(w.time)
+            let year = date.getFullYear()
+            let month = date.getMonth() + 1
+            let day = date.getDate()
+            let hour = date.getHours()
+            if (hour < 10) hour = "0" + hour
+            let minute = date.getMinutes()
+            if (minute < 10) minute = "0" + minute
+            table.innerHTML += `
+                <tr>
+                    <td>
+                        ${year}/${month}/${day}<br>
+                        ${hour}:${minute}
+                    </td>
+                    <td>
+                        ${w.temp}&#8451;<br>
+                        Feels like ${w.feel}&#8451;
+                    </td>
+                    <td>
+                        ${w.prob}% chance<br>
+                        ${w.prec}mm
+                    </td>
+                    <td>
+                        ${w.wind}kmph<br>
+                        Gusts of ${w.gust}kmph
+                    </td>
+                </tr>
+            `
+        }
+    </script>
+</body>
+</html>
